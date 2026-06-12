@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -73,7 +74,24 @@ async def run_cloud_prompt(
                 run = await agent.send(prompt)
                 run_id = run.id
 
-                result = await run.wait()
+                try:
+                    result = await asyncio.wait_for(
+                        run.wait(),
+                        timeout=settings.cursor_run_timeout_sec,
+                    )
+                except TimeoutError as exc:
+                    from app.services.analysis.cursor_agents.errors import AgentRunError
+
+                    raise AgentRunError(
+                        message=(
+                            f"Agent run timed out after {settings.cursor_run_timeout_sec}s"
+                        ),
+                        agent_id=agent_id,
+                        run_id=run_id,
+                        status="timeout",
+                        retryable=True,
+                    ) from exc
+
                 raise_if_run_failed(
                     result.status,
                     agent_id=agent_id,

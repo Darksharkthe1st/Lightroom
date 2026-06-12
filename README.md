@@ -24,7 +24,7 @@ Lightroom currently has **two analysis paths**:
 | Path | Entry point | Engine | Status |
 |------|-------------|--------|--------|
 | **Web API** | `POST /api/analysis/resume` | Heuristic `RepoAgent` (file tree + commits) | MVP — wired to frontend |
-| **CLI / SDK** | `python scripts/run_scout.py` | Cursor cloud agents via `cursor-sdk` | Milestones 1 + 3 done |
+| **CLI / SDK** | `run_scout.py`, `run_rabbit_holes.py` | Cursor cloud agents via `cursor-sdk` | Scout + rabbit holes (M1–4) |
 
 The SDK pipeline (scout → rabbit holes → synthesizer) is the target architecture. See **[docs/RESUME_BULLETS_PLAN.md](docs/RESUME_BULLETS_PLAN.md)** for milestones and checkpoints.
 
@@ -37,6 +37,7 @@ The SDK pipeline (scout → rabbit holes → synthesizer) is the target architec
 | **GitHub service** | OAuth flow, list accessible repos, fetch trees/files/commits (paginated) |
 | **Triage** (`triage.py`) | Phase 0 heuristics — file-tree signals, commit count, `triage.json` |
 | **Scout** (`cursor_agents/scout.py`) | Phase 1 Cursor cloud agent — `findings.md`, `rabbit_holes.json` |
+| **Rabbit holes** (`cursor_agents/rabbit_hole.py`) | Phase 2 parallel deep dives — `signals/{signal_id}.md` |
 | **RepoAgent** (`repo_agent.py`) | Legacy heuristic agent — still used by `AnalysisOrchestrator` for API routes |
 | **Orchestrator** (`orchestrator.py`) | Runs per-repo agents in parallel, aggregates bullets (API path today) |
 
@@ -118,6 +119,11 @@ python scripts/run_scout.py --smoke
 
 # Scout a specific repo
 python scripts/run_scout.py --owner Darksharkthe1st --repo CodeRunner
+
+# Rabbit-hole deep dives (requires scout output first)
+python scripts/run_rabbit_holes.py --owner Darksharkthe1st --repo CodeRunner
+python scripts/run_rabbit_holes.py --signal-id docker_execution_queue  # single signal
+python scripts/run_rabbit_holes.py --dry-run  # preview selected holes
 ```
 
 ### Output files
@@ -133,6 +139,8 @@ Artifacts land in `backend/data/analysis/{owner}/{repo}/`:
 | `runs/scout.json` | 1 | `agent_id`, `run_id`, status, duration |
 | `runs/scout_response.txt` | 1 | Raw agent response (debug) |
 | `runs/scout_artifacts.json` | 1 | SDK artifact manifest (often empty on cloud) |
+| `signals/{signal_id}.md` | 2 | Per-signal deep dive with file/commit evidence |
+| `runs/{signal_id}.json` | 2 | Per-hole run metadata |
 | `signals/*.md` | 2 | Per-signal rabbit-hole notes *(not yet implemented)* |
 | `bullets.json` | 3 | Final resume bullets *(not yet implemented)* |
 

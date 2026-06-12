@@ -12,6 +12,9 @@ class Settings(BaseSettings):
     data_dir: str = "data"
     cursor_api_key: str = ""
     cursor_model: str = "composer-2.5"
+    cursor_rabbit_hole_max: int = 3
+    cursor_rabbit_hole_min_confidence: float = 0.7
+    cursor_run_timeout_sec: int = 600
 
     @property
     def github_configured(self) -> bool:

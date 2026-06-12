@@ -9,7 +9,7 @@ Cursor SDK–powered pipeline that analyzes GitHub repositories and produces rec
 | 1 — SDK plumbing | ✅ Done |
 | 2 — Taxonomy + triage | 🟡 Partial (`triage.py` exists; `taxonomy.yaml` pending) |
 | 3 — Scout agent | ✅ Done (validated on `Darksharkthe1st/CodeRunner`) |
-| 4 — Rabbit-hole agents | ⬜ Not started |
+| 4 — Rabbit-hole agents | 🟡 Implemented (CLI ready; validation pending) |
 | 5 — Synthesizer + API | ⬜ Not started |
 | 6 — Frontend polish | ⬜ Not started |
 
@@ -94,13 +94,15 @@ backend/app/services/analysis/
   orchestrator.py             # Parallel per-repo runner (API path today)
   cursor_agents/
     client.py                 # AsyncClient + cloud Agent.create/send/wait
-    scout.py                  # Phase 1 orchestration
-    artifacts.py              # Delimiter + artifact parsing
-    prompts.py                # Scout (and future hole/synth) prompts
+  scout.py                  # Phase 1 orchestration
+  rabbit_hole.py            # Phase 2 parallel deep dives
+  artifacts.py              # Delimiter + artifact parsing
+  prompts.py                # Scout, rabbit-hole, (future synth) prompts
     errors.py                 # CursorAgentError vs run failure
     repo_utils.py             # Connected-repo checks, branch resolution
 backend/scripts/
   run_scout.py                # CLI entry point
+  run_rabbit_holes.py         # CLI entry point (Phase 2)
 ```
 
 ## Recruiter signal taxonomy
@@ -219,12 +221,14 @@ Cloud SDK `list_artifacts()` currently returns **empty** for scout runs. Parsing
 
 ---
 
-### Milestone 4 — Rabbit-hole agents
+### Milestone 4 — Rabbit-hole agents 🟡
 
-- [ ] Per-signal prompt templates (from taxonomy or `rabbit_holes.json`)
-- [ ] `rabbit_hole.py` — parallel runner with semaphore (max 3)
-- [ ] Failure isolation per signal
-- [ ] `signals/{signal_id}.md` artifacts
+- [x] Per-signal prompt templates (from `rabbit_holes.json`)
+- [x] `rabbit_hole.py` — parallel runner with semaphore (max 3)
+- [x] Failure isolation per signal
+- [x] `signals/{signal_id}.md` artifacts
+- [x] CLI: `backend/scripts/run_rabbit_holes.py`
+- [ ] Manual validation on CodeRunner (at least one signal note with evidence)
 
 **Done when:** At least one rabbit hole on CodeRunner produces a signal note with file/commit evidence.
 

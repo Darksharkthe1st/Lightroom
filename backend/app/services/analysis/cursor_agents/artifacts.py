@@ -11,6 +11,8 @@ FINDINGS_DELIM_START = "<<<LIGHTROOM_FINDINGS_MD>>>"
 FINDINGS_DELIM_END = "<<<END_LIGHTROOM_FINDINGS_MD>>>"
 RABBIT_DELIM_START = "<<<LIGHTROOM_RABBIT_HOLES_JSON>>>"
 RABBIT_DELIM_END = "<<<END_LIGHTROOM_RABBIT_HOLES_JSON>>>"
+SIGNAL_DELIM_START = "<<<LIGHTROOM_SIGNAL_MD>>>"
+SIGNAL_DELIM_END = "<<<END_LIGHTROOM_SIGNAL_MD>>>"
 
 
 def parse_scout_output(
@@ -99,12 +101,59 @@ def _loads_json_array(raw: str) -> list[dict[str, Any]] | None:
     return None
 
 
+def parse_rabbit_hole_output(
+    text: str,
+    artifacts: dict[str, str] | None = None,
+    *,
+    signal_id: str,
+) -> str:
+    """Extract a signal note markdown from a rabbit-hole agent response."""
+    artifacts = artifacts or {}
+    basename = f"{signal_id}.md"
+
+    signal_md = (
+        _from_delimiter(text, SIGNAL_DELIM_START, SIGNAL_DELIM_END)
+        or _artifact_by_basename(artifacts, basename)
+        or _artifact_by_signal_path(artifacts, signal_id)
+        or _extract_legacy_artifact(text, basename)
+        or _extract_signal_markdown_block(text)
+    )
+
+    if not signal_md:
+        signal_md = _strip_signal_delimiters(text).strip()
+
+    return signal_md.strip()
+
+
+def _artifact_by_signal_path(artifacts: dict[str, str], signal_id: str) -> str | None:
+    needle = f"signals/{signal_id}.md"
+    for path, content in artifacts.items():
+        if needle in path.replace("\\", "/") and content.strip():
+            return content.strip()
+    return None
+
+
+def _extract_signal_markdown_block(text: str) -> str | None:
+    if "# Signal:" not in text:
+        return None
+    start = text.index("# Signal:")
+    chunk = text[start:].split("--- artifact:")[0]
+    chunk = chunk.split(SIGNAL_DELIM_START)[0]
+    return chunk.strip() or None
+
+
 def _strip_delimiters(text: str) -> str:
     for marker in (
         FINDINGS_DELIM_START,
         FINDINGS_DELIM_END,
         RABBIT_DELIM_START,
         RABBIT_DELIM_END,
+        SIGNAL_DELIM_START,
+        SIGNAL_DELIM_END,
     ):
         text = text.replace(marker, "")
     return text
+
+
+def _strip_signal_delimiters(text: str) -> str:
+    return _strip_delimiters(text)
