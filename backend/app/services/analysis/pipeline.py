@@ -5,7 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from app.config import settings
-from app.services.analysis.artifact_loader import load_repo_analysis, resume_response_from_artifacts
+from app.services.analysis.artifact_loader import (
+    load_repo_analysis,
+    scout_artifacts_ready,
+)
 from app.services.analysis.cursor_agents.rabbit_hole import run_rabbit_holes
 from app.services.analysis.cursor_agents.repo_utils import assert_repo_connected, normalize_repo_url
 from app.services.analysis.cursor_agents.scout import run_scout
@@ -48,9 +51,7 @@ async def run_repo_pipeline(
 
         await assert_repo_connected(repo_url)
 
-        analysis = load_repo_analysis(data_dir, owner, repo)
-
-        if not analysis.scout_complete:
+        if not scout_artifacts_ready(owner, repo, data_dir):
             _set_job(
                 owner,
                 repo,
@@ -59,10 +60,11 @@ async def run_repo_pipeline(
                 message="Scout agent exploring the repository (about 2–3 minutes)…",
             )
             await run_scout(github, owner, repo, username, data_dir)
-            analysis = load_repo_analysis(data_dir, owner, repo)
+
+        analysis = load_repo_analysis(data_dir, owner, repo)
 
         holes_to_run = analysis.rabbit_holes_planned - analysis.rabbit_holes_complete
-        if holes_to_run > 0 or (analysis.scout_complete and analysis.rabbit_holes_complete == 0):
+        if holes_to_run > 0 or (scout_artifacts_ready(owner, repo, data_dir) and analysis.rabbit_holes_complete == 0):
             _set_job(
                 owner,
                 repo,

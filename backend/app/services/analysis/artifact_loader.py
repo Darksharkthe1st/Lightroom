@@ -22,9 +22,32 @@ def _analysis_roots() -> list[Path]:
     return roots
 
 
+def live_analysis_dir(owner: str, repo: str) -> Path:
+    return settings.data_path / "analysis" / owner / repo
+
+
+def scout_artifacts_ready(owner: str, repo: str, data_dir: Path | None = None) -> bool:
+    """True only when a full scout run completed (not heuristic RepoAgent output)."""
+    live = live_analysis_dir(owner, repo)
+    if (live / "findings.md").exists() and (live / "rabbit_holes.json").exists():
+        return True
+    for root in _analysis_roots():
+        candidate = root / owner / repo
+        if candidate == live:
+            continue
+        if (candidate / "findings.md").exists() and (candidate / "rabbit_holes.json").exists():
+            return True
+    return False
+
+
 def analysis_dir(data_dir: Path, owner: str, repo: str) -> Path:
     """Resolve repo analysis dir — prefers live data, falls back to seed_data."""
+    live = live_analysis_dir(owner, repo)
+    if (live / "findings.md").exists():
+        return live
     for root in _analysis_roots():
+        if root == settings.data_path / "analysis":
+            continue
         candidate = root / owner / repo
         if (candidate / "findings.md").exists():
             return candidate
@@ -85,8 +108,8 @@ def load_repo_analysis(data_dir: Path, owner: str, repo: str) -> RepoAnalysis:
     base = analysis_dir(data_dir, owner, repo)
     full_name = f"{owner}/{repo}"
 
-    triage_done = (base / "triage.json").exists()
-    scout_done = (base / "findings.md").exists()
+    triage_done = (base / "triage.json").exists() or (live_analysis_dir(owner, repo) / "triage.json").exists()
+    scout_done = scout_artifacts_ready(owner, repo, data_dir)
     rabbit_plan = 0
     if (base / "rabbit_holes.json").exists():
         try:
