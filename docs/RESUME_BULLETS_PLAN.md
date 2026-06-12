@@ -2,6 +2,19 @@
 
 Cursor SDK–powered pipeline that analyzes GitHub repositories and produces recruiter-quality resume bullets with traceable evidence.
 
+## Current status (June 2026)
+
+| Milestone | Status |
+|-----------|--------|
+| 1 — SDK plumbing | ✅ Done |
+| 2 — Taxonomy + triage | 🟡 Partial (`triage.py` exists; `taxonomy.yaml` pending) |
+| 3 — Scout agent | ✅ Done (validated on `Darksharkthe1st/CodeRunner`) |
+| 4 — Rabbit-hole agents | ⬜ Not started |
+| 5 — Synthesizer + API | ⬜ Not started |
+| 6 — Frontend polish | ⬜ Not started |
+
+**Important:** The web API (`POST /api/analysis/resume`) still uses the heuristic `RepoAgent`. The SDK pipeline is CLI-only until Milestone 5 wires it into `AnalysisOrchestrator`.
+
 ## Goals
 
 | Goal | Approach |
@@ -26,11 +39,11 @@ flowchart TB
   subgraph triage [Phase 0 - Triage]
     GH[GitHub API] --> Tree[File tree + key files]
     GH --> Commits[User commits]
-    Tree --> Signals[Signal detector]
+    Tree --> Triage[triage.py]
   end
 
   subgraph scout [Phase 1 - Scout Agent]
-    Signals --> Scout[Scout Agent - cloud]
+    Triage --> Scout[Scout Agent - cloud]
     Commits --> Scout
     Scout --> Findings[findings.md]
     Scout --> RabbitPlan[rabbit_holes.json]
@@ -51,27 +64,50 @@ flowchart TB
   Bullets --> API[FastAPI response]
 ```
 
-**Runtime:** Cloud agents (`cursor-sdk`) clone repos on Cursor VMs. Phase 0 stays on the FastAPI server via GitHub API.
+**Runtime:** Cloud agents (`cursor-sdk`) clone repos on Cursor VMs. Repos must be connected in **Cursor Dashboard → Integrations**. Phase 0 stays on the FastAPI server via GitHub API.
 
 ## Artifact layout (per repo)
 
 ```
 backend/data/analysis/{owner}/{repo}/
   triage.json
+  commits.json
   findings.md
   rabbit_holes.json
-  signals/
-  commits.json
-  bullets.json
+  signals/                    # Milestone 4
+  bullets.json                # Milestone 5
   runs/
     scout.json
-    {signal_id}.json
-    synthesizer.json
+    scout_response.txt        # raw agent message (debug)
+    scout_artifacts.json      # SDK artifact manifest
+    artifacts/                # downloaded artifacts (if any)
+    {signal_id}.json          # Milestone 4
+    synthesizer.json          # Milestone 5
+```
+
+## Code map
+
+```
+backend/app/services/analysis/
+  triage.py                   # Phase 0 — inline SIGNAL_PATTERNS, triage.json
+  repo_agent.py               # Legacy heuristic agent (API path today)
+  orchestrator.py             # Parallel per-repo runner (API path today)
+  cursor_agents/
+    client.py                 # AsyncClient + cloud Agent.create/send/wait
+    scout.py                  # Phase 1 orchestration
+    artifacts.py              # Delimiter + artifact parsing
+    prompts.py                # Scout (and future hole/synth) prompts
+    errors.py                 # CursorAgentError vs run failure
+    repo_utils.py             # Connected-repo checks, branch resolution
+backend/scripts/
+  run_scout.py                # CLI entry point
 ```
 
 ## Recruiter signal taxonomy
 
-Signals are defined in `backend/app/services/analysis/taxonomy.yaml` (Milestone 2). Categories:
+**Today:** signals live inline in `triage.py` as `SIGNAL_PATTERNS` (~12 patterns).
+
+**Milestone 2:** extract to `taxonomy.yaml` with richer metadata. Planned categories:
 
 - **Languages** — Python, TypeScript, Go, Rust, Java
 - **Frameworks** — React, Next.js, FastAPI, Django, Spring
@@ -80,7 +116,7 @@ Signals are defined in `backend/app/services/analysis/taxonomy.yaml` (Milestone 
 - **Practices** — CI/CD, testing, observability, auth/OAuth
 - **Architecture** — microservices, event-driven, caching, queues
 
-Each signal has: `id`, `display_name`, `resume_keywords`, `file_patterns`, `config_markers`, `rabbit_hole_prompt_template`, `min_confidence_to_spawn`.
+Each signal will have: `id`, `display_name`, `resume_keywords`, `file_patterns`, `config_markers`, `rabbit_hole_prompt_template`, `min_confidence_to_spawn`.
 
 ## Gating rules
 
@@ -92,14 +128,28 @@ Each signal has: `id`, `display_name`, `resume_keywords`, `file_patterns`, `conf
 | Per repo | Max 3 rabbit-hole agents |
 | Per user (analyze-all) | Max 5 repos in parallel (configurable) |
 
+`triage.json` includes `worth_deep_analysis` (basic gating today). Formal rabbit-hole gating is Milestone 2.
+
 ## SDK integration
 
 - **Package:** `cursor-sdk` (Python)
 - **Async:** `AsyncClient.launch_bridge` + `AsyncAgent`
-- **Scout / holes / synth:** `Agent.create` + `send` + `wait` (artifacts + run metadata)
+- **Scout / holes / synth:** `Agent.create` + `send` + `wait`
 - **Runtime:** `CloudAgentOptions(repos=[CloudRepository(...)])`
-- **Model:** `composer-2.5`
+- **Model:** `composer-2.5` (configurable via `CURSOR_MODEL`)
 - **Auth:** `CURSOR_API_KEY` in `backend/.env`
+- **Repo access:** repo must be connected in Cursor Dashboard → Integrations (`repo_utils.py` validates)
+
+### Output parsing (important)
+
+Cloud SDK `list_artifacts()` currently returns **empty** for scout runs. Parsing uses this priority (`artifacts.py`):
+
+1. **Delimiter blocks** in the agent's final message (primary — scout prompt requires these):
+   - `<<<LIGHTROOM_FINDINGS_MD>>>…<<<END_LIGHTROOM_FINDINGS_MD>>>`
+   - `<<<LIGHTROOM_RABBIT_HOLES_JSON>>>…<<<END_LIGHTROOM_RABBIT_HOLES_JSON>>>`
+2. Downloaded SDK artifacts (if `list_artifacts()` returns paths)
+3. Legacy `--- artifact: ---` format
+4. Heuristic markdown / JSON extraction from response text
 
 ### Error handling
 
@@ -118,8 +168,8 @@ Each signal has: `id`, `display_name`, `resume_keywords`, `file_patterns`, `conf
 
 | # | Question | Current default |
 |---|----------|-----------------|
-| 1 | Private repo cloud clone auth | Pass GitHub token via `env_vars` if needed; fallback to local clone |
-| 2 | Analyze-all vs selective | Start with single-repo SDK analysis |
+| 1 | Private repo cloud clone auth | Repo connected via Cursor Dashboard; `GITHUB_TOKEN` for API triage/commits |
+| 2 | Analyze-all vs selective | Single-repo SDK analysis via CLI |
 | 3 | Sync vs async API | Blocking for single-repo MVP; `202 + job_id` before analyze-all |
 | 4 | Bullet tone | Third-person resume fragments (no "I") |
 
@@ -127,46 +177,51 @@ Each signal has: `id`, `display_name`, `resume_keywords`, `file_patterns`, `conf
 
 ## Milestones (checkpoints)
 
-### Milestone 1 — SDK plumbing
+### Milestone 1 — SDK plumbing ✅
 
 - [x] Add `cursor-sdk` to `backend/requirements.txt`
-- [x] Add `CURSOR_API_KEY` to config and `.env.example`
+- [x] Add `CURSOR_API_KEY` / `CURSOR_MODEL` to config and `.env.example`
 - [x] Create `backend/app/services/analysis/cursor_agents/` module
   - [x] `client.py` — async cloud agent helpers
   - [x] `errors.py` — `CursorAgentError` vs run failure handling
   - [x] `prompts.py` — prompt templates
-- [ ] Smoke test: one cloud `Agent.prompt` against a public repo
+  - [x] `artifacts.py` — delimiter + artifact parsing
+  - [x] `repo_utils.py` — connected-repo checks, branch resolution
+- [x] Smoke test against a Cursor-connected repo (`run_scout.py --smoke`)
 - [x] CLI: `backend/scripts/run_scout.py` entry point
 
-**Done when:** `python scripts/run_scout.py --repo owner/name` connects to Cursor cloud and returns a run result.
+**Done when:** `python scripts/run_scout.py` connects to Cursor cloud and returns a run result. ✅
 
 ---
 
-### Milestone 2 — Taxonomy + triage
+### Milestone 2 — Taxonomy + triage 🟡
 
 - [ ] `taxonomy.yaml` with ~20 high-value recruiter signals
-- [ ] `signal_detector.py` producing `triage.json`
-- [ ] Gating logic (`worth_deep_analysis`, rabbit-hole eligibility)
+- [x] `triage.py` producing `triage.json` (inline `SIGNAL_PATTERNS` today)
+- [x] Paginated commit fetch (`list_commits_all`, up to 500)
+- [x] Basic gating (`worth_deep_analysis` in triage output)
+- [ ] Formal rabbit-hole eligibility rules
 - [ ] Unit tests for signal detection from file trees
 
-**Done when:** Triage runs without SDK and writes `triage.json` for any accessible repo.
+**Done when:** Triage runs without SDK, uses `taxonomy.yaml`, and writes `triage.json` for any accessible repo.
 
 ---
 
-### Milestone 3 — Scout agent
+### Milestone 3 — Scout agent ✅
 
 - [x] Scout prompt: confirm signals, write `findings.md`, plan `rabbit_holes.json`
+- [x] Delimiter blocks in prompt for reliable parsing
 - [x] `scout.py` — orchestrates cloud agent, persists artifacts locally
 - [x] `runs/scout.json` — agent_id, run_id, status, duration
-- [ ] Manual validation on **Darksharkthe1st/CodeRunner**
+- [x] Manual validation on **Darksharkthe1st/CodeRunner** (5 rabbit holes, 116 commits)
 
-**Done when:** Scout produces `findings.md` and `rabbit_holes.json` with recruiter-relevant signals and evidence-backed rabbit-hole recommendations.
+**Done when:** Scout produces `findings.md` and `rabbit_holes.json` with recruiter-relevant signals and evidence-backed rabbit-hole recommendations. ✅
 
 ---
 
 ### Milestone 4 — Rabbit-hole agents
 
-- [ ] Per-signal prompt templates from taxonomy
+- [ ] Per-signal prompt templates (from taxonomy or `rabbit_holes.json`)
 - [ ] `rabbit_hole.py` — parallel runner with semaphore (max 3)
 - [ ] Failure isolation per signal
 - [ ] `signals/{signal_id}.md` artifacts
@@ -179,7 +234,7 @@ Each signal has: `id`, `display_name`, `resume_keywords`, `file_patterns`, `conf
 
 - [ ] `synthesizer.py` — merge findings + signals + commits → `bullets.json`
 - [ ] Map `bullets.json` → `ResumeBullet` models (extend with `signals`, `confidence`)
-- [ ] Wire into `AnalysisOrchestrator`
+- [ ] Wire SDK pipeline into `AnalysisOrchestrator` (replace `RepoAgent`)
 - [ ] Optional: `POST /analysis/resume` → `202` + `job_id` polling
 
 **Done when:** `POST /api/analysis/resume/Darksharkthe1st/CodeRunner` returns SDK-generated bullets with evidence.
@@ -196,16 +251,16 @@ Each signal has: `id`, `display_name`, `resume_keywords`, `file_patterns`, `conf
 
 ---
 
-## Implementation order (recommended)
+## Implementation order
 
-1. **Milestones 1 + 3** on CodeRunner — validate SDK auth, cloud clone, scout prompt quality
-2. **Milestone 2** — formalize triage before automating rabbit holes
-3. **Milestone 4** — rabbit holes on signals scout recommends
-4. **Milestones 5 + 6** — end-to-end API and UI
+1. ~~**Milestones 1 + 3** on CodeRunner~~ ✅
+2. **Milestone 4** — rabbit holes on signals scout recommends (CodeRunner has 5 queued)
+3. **Milestone 2** — formalize `taxonomy.yaml` (can parallelize with M4)
+4. **Milestones 5 + 6** — wire SDK pipeline to API and frontend
 
 ## What we keep from MVP
 
 - GitHub OAuth + repo listing
 - `findings.md` as scout's durable artifact
-- `ResumeBullet` schema (extended later)
-- Orchestrator parallel-per-repo pattern
+- `ResumeBullet` schema (extended in Milestone 5)
+- Orchestrator parallel-per-repo pattern (SDK replaces `RepoAgent` in Milestone 5)
