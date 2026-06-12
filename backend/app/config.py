@@ -1,4 +1,8 @@
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+BACKEND_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
@@ -23,6 +27,17 @@ class Settings(BaseSettings):
     @property
     def cursor_configured(self) -> bool:
         return bool(self.cursor_api_key)
+
+    @property
+    def data_path(self) -> Path:
+        """Absolute path to backend/data — independent of process cwd."""
+        path = Path(self.data_dir)
+        return path if path.is_absolute() else BACKEND_ROOT / path
+
+    @property
+    def seed_data_path(self) -> Path:
+        """Committed demo artifacts shipped with the repo."""
+        return BACKEND_ROOT / "seed_data"
 
 
 settings = Settings()

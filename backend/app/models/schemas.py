@@ -49,6 +49,25 @@ class ResumeBullet(BaseModel):
     text: str
     source_repo: str
     evidence: list[str] = Field(default_factory=list)
+    signal_id: str | None = None
+
+
+class SignalNote(BaseModel):
+    signal_id: str
+    display_name: str
+    summary: str
+
+
+class RepoAnalysis(BaseModel):
+    full_name: str
+    status: str
+    triage_complete: bool = False
+    scout_complete: bool = False
+    rabbit_holes_planned: int = 0
+    rabbit_holes_complete: int = 0
+    findings_excerpt: str = ""
+    signals: list[SignalNote] = Field(default_factory=list)
+    bullets: list[ResumeBullet] = Field(default_factory=list)
 
 
 class ResumeResponse(BaseModel):

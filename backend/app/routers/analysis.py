@@ -1,16 +1,21 @@
-from pathlib import Path
-
 from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app.config import settings
-from app.models.schemas import ResumeResponse
+from app.models.schemas import RepoAnalysis, ResumeResponse
 from app.routers.auth import _require_session, get_github_client
+from app.services.analysis.artifact_loader import load_repo_analysis
 from app.services.analysis.orchestrator import AnalysisOrchestrator
 from app.services.github import GitHubService
 
 router = APIRouter(prefix="/analysis", tags=["analysis"])
 
-_orchestrator = AnalysisOrchestrator(Path(settings.data_dir))
+_orchestrator = AnalysisOrchestrator(settings.data_path)
+
+
+@router.get("/repo/{owner}/{repo}", response_model=RepoAnalysis)
+async def get_repo_analysis(owner: str, repo: str, request: Request) -> RepoAnalysis:
+    _require_session(request)
+    return load_repo_analysis(settings.data_path, owner, repo)
 
 
 @router.get("/resume", response_model=ResumeResponse)

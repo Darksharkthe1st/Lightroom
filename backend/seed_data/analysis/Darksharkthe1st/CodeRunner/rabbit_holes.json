@@ -1,0 +1,79 @@
+[
+  {
+    "signal_id": "docker_execution_queue",
+    "display_name": "Docker sandbox + async execution queue",
+    "rationale": "Core differentiator: 29 commits to CodeSubmission.java, full CodeExecutionService with 10-worker ExecutorService, ConcurrentHashMap UUID tracking, scheduled cleanup, and DinD production setup. Strong systems-design story with measurable benchmark results in metrics/benchmark.py.",
+    "search_paths": [
+      "src/main/java/com/cr/coderunner/service/CodeExecutionService.java",
+      "src/main/java/com/cr/coderunner/model/CodeSubmission.java",
+      "src/main/java/com/cr/coderunner/controller/IDEController.java",
+      "Dockerfile",
+      "docker-entrypoint.sh",
+      "docker/Dockerfile.gcc",
+      "metrics/benchmark.py"
+    ],
+    "priority": 1,
+    "confidence": 0.95
+  },
+  {
+    "signal_id": "langchain4j_agent",
+    "display_name": "LangChain4j AI agent with autonomous tool calling",
+    "rationale": "20+ commits building end-to-end LLM integration: Gemini backend, multi-message chat UI, react-markdown rendering, and @AiService/@Tool agent that autonomously executes code to verify fixes. Goes well beyond a basic API wrapper.",
+    "search_paths": [
+      "src/main/java/com/cr/coderunner/service/CodeHelperAssistant.java",
+      "src/main/java/com/cr/coderunner/service/CodeExecutionTools.java",
+      "src/main/java/com/cr/coderunner/service/LLMConfig.java",
+      "src/main/java/com/cr/coderunner/service/GeminiService.java",
+      "src/main/java/com/cr/coderunner/controller/LLMController.java",
+      "cr-frontend/src/components/ChatInterface.jsx",
+      "cr-frontend/src/App.jsx"
+    ],
+    "priority": 1,
+    "confidence": 0.9
+  },
+  {
+    "signal_id": "full_stack_deployment",
+    "display_name": "Production deployment (DinD + Caddy + Fly.io + Vercel)",
+    "rationale": "Multiple deployment layers authored by the user: Docker-in-Docker container, Caddy reverse proxy with TLS, Fly.io CI/CD via GitHub Actions, and Vercel frontend with CORS configuration. Demonstrates DevOps breadth beyond local development.",
+    "search_paths": [
+      "CaddyDeployment/Caddyfile",
+      "CaddyDeployment/docker-compose.yml",
+      "fly.toml",
+      ".github/workflows/fly-deploy.yml",
+      "src/main/java/com/cr/coderunner/service/WebConfig.java",
+      "docker-entrypoint.sh",
+      "README.md"
+    ],
+    "priority": 2,
+    "confidence": 0.85
+  },
+  {
+    "signal_id": "observability_benchmarking",
+    "display_name": "Observability + performance benchmarking",
+    "rationale": "Micrometer/Prometheus instrumentation with @Timed AOP aspects, Prometheus scrape config, and a Python benchmark suite that measures latency, concurrency speedup, queue saturation, timeout enforcement, and Docker overhead against the live deployment.",
+    "search_paths": [
+      "src/main/java/com/cr/coderunner/CodeRunnerApplication.java",
+      "src/main/java/com/cr/coderunner/controller/IDEController.java",
+      "configs/prometheus.yml",
+      "metrics/benchmark.py",
+      "pom.xml"
+    ],
+    "priority": 3,
+    "confidence": 0.8
+  },
+  {
+    "signal_id": "react_ide_frontend",
+    "display_name": "React IDE frontend with Monaco Editor + polling UX",
+    "rationale": "25 commits to App.jsx building a polished IDE: Monaco Editor with custom themes, UUID-based execution polling, draggable split-pane layout, dark/light mode, multi-tab interface with persistent chat state, and terminal-style markdown rendering.",
+    "search_paths": [
+      "cr-frontend/src/App.jsx",
+      "cr-frontend/src/components/CodeEditor.jsx",
+      "cr-frontend/src/components/Terminal.jsx",
+      "cr-frontend/src/components/ChatInterface.jsx",
+      "cr-frontend/src/themes/monacoTheme.js",
+      "cr-frontend/package.json"
+    ],
+    "priority": 3,
+    "confidence": 0.85
+  }
+]

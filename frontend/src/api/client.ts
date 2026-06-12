@@ -55,6 +55,25 @@ export interface ResumeBullet {
   text: string;
   source_repo: string;
   evidence: string[];
+  signal_id?: string | null;
+}
+
+export interface SignalNote {
+  signal_id: string;
+  display_name: string;
+  summary: string;
+}
+
+export interface RepoAnalysis {
+  full_name: string;
+  status: string;
+  triage_complete: boolean;
+  scout_complete: boolean;
+  rabbit_holes_planned: number;
+  rabbit_holes_complete: number;
+  findings_excerpt: string;
+  signals: SignalNote[];
+  bullets: ResumeBullet[];
 }
 
 export interface ResumeResponse {
@@ -70,6 +89,8 @@ export const apiClient = {
   listRepos: () => api<Repository[]>("/api/repos"),
   getRepoSummary: (owner: string, repo: string) =>
     api<RepositorySummary>(`/api/repos/${owner}/${repo}`),
+  getRepoAnalysis: (owner: string, repo: string) =>
+    api<RepoAnalysis>(`/api/analysis/repo/${owner}/${repo}`),
   getResume: () => api<ResumeResponse>("/api/analysis/resume"),
   runResumeAnalysis: () =>
     api<ResumeResponse>("/api/analysis/resume", { method: "POST" }),

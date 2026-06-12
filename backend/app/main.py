@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-Path(settings.data_dir).mkdir(parents=True, exist_ok=True)
+settings.data_path.mkdir(parents=True, exist_ok=True)
 
 app.include_router(auth.router, prefix="/api")
 app.include_router(repos.router, prefix="/api")

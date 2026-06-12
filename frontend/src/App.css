@@ -189,3 +189,68 @@ body {
   margin-top: 0.5rem;
   font-size: 0.85rem;
 }
+
+.pipeline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.pipeline-step {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 999px;
+  background: #f0f2f5;
+  color: #667085;
+}
+
+.pipeline-step.done {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.signals-section {
+  margin: 1.5rem 0;
+}
+
+.signals-section h3 {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.signal-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.signal-card {
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.signal-card p {
+  margin: 0.5rem 0 0;
+  font-size: 0.9rem;
+  color: #475467;
+}
+
+.landing p {
+  max-width: 32rem;
+  margin: 0 auto 1.5rem;
+  color: #475467;
+}
+
+.demo-hint {
+  background: #fffaeb;
+  border: 1px solid #fec84b;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}

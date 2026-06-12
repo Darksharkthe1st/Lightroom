@@ -6,10 +6,10 @@ import asyncio
 from pathlib import Path
 
 from app.models.schemas import AnalysisStatus, ResumeBullet, ResumeResponse
+from app.services.analysis.artifact_loader import resume_response_from_artifacts
 from app.services.analysis.repo_agent import RepoAgent
 from app.services.github import GitHubService
 
-# In-memory job tracking for MVP
 _jobs: dict[str, dict] = {}
 
 
@@ -54,6 +54,9 @@ class AnalysisOrchestrator:
 
         async def analyze_one(full_name: str) -> list[ResumeBullet]:
             owner, repo = full_name.split("/", 1)
+            cached = resume_response_from_artifacts(self.data_dir, owner, repo, username)
+            if cached is not None:
+                return cached.bullets
             agent = RepoAgent(github, owner, repo, username, self.data_dir)
             try:
                 _, bullets = await agent.run()
@@ -91,4 +94,13 @@ class AnalysisOrchestrator:
         owner: str,
         repo: str,
     ) -> ResumeResponse:
+        cached = resume_response_from_artifacts(self.data_dir, owner, repo, username)
+        if cached:
+            key = self._job_key(username)
+            _jobs[key] = {
+                "status": AnalysisStatus.COMPLETED,
+                "bullets": cached.bullets,
+                "message": cached.message,
+            }
+            return cached
         return await self.analyze_repositories(github, username, [f"{owner}/{repo}"])

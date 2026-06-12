@@ -1,0 +1,103 @@
+{
+  "repo": "Darksharkthe1st/CodeRunner",
+  "username": "Darksharkthe1st",
+  "branch": "main",
+  "description": "A full-stack web-based IDE that allows users to write, compile, and execute code in multiple programming languages directly in their browser. Built with React and Spring Boot, CodeRunner provides a safe, containerized execution environment using Docker.",
+  "language": "JavaScript",
+  "commit_count": 116,
+  "file_count": 84,
+  "top_level_dirs": [
+    ".github",
+    ".idea",
+    ".mvn",
+    "CaddyDeployment",
+    "configs",
+    "cr-frontend",
+    "docker",
+    "metrics",
+    "src"
+  ],
+  "signals": [
+    {
+      "id": "react",
+      "confidence": 0.85,
+      "triggers": [
+        "cr-frontend/",
+        "react",
+        "jsx",
+        "package.json"
+      ]
+    },
+    {
+      "id": "spring_boot",
+      "confidence": 0.75,
+      "triggers": [
+        "spring",
+        "pom.xml",
+        "src/main/java"
+      ]
+    },
+    {
+      "id": "docker",
+      "confidence": 0.75,
+      "triggers": [
+        "docker",
+        "Dockerfile",
+        "docker-compose"
+      ]
+    },
+    {
+      "id": "java",
+      "confidence": 0.75,
+      "triggers": [
+        ".java",
+        "pom.xml",
+        "mvnw"
+      ]
+    },
+    {
+      "id": "observability",
+      "confidence": 0.65,
+      "triggers": [
+        "prometheus",
+        "metrics"
+      ]
+    },
+    {
+      "id": "ci_cd",
+      "confidence": 0.55,
+      "triggers": [
+        ".github/workflows"
+      ]
+    },
+    {
+      "id": "testing",
+      "confidence": 0.55,
+      "triggers": [
+        "test"
+      ]
+    },
+    {
+      "id": "python",
+      "confidence": 0.55,
+      "triggers": [
+        ".py"
+      ]
+    },
+    {
+      "id": "ai_llm",
+      "confidence": 0.55,
+      "triggers": [
+        "llm"
+      ]
+    },
+    {
+      "id": "api_design",
+      "confidence": 0.55,
+      "triggers": [
+        "controller"
+      ]
+    }
+  ],
+  "worth_deep_analysis": true
+}

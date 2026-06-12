@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.config import settings
 from app.models.schemas import Repository, RepositorySummary
 from app.routers.auth import get_github_client
 from app.services.github import GitHubService
-from app.services.repository_summary import build_template_summary
+from app.services.repository_summary import build_repository_summary
 
 router = APIRouter(prefix="/repos", tags=["repos"])
 
@@ -25,4 +26,4 @@ async def get_repository_summary(
     match = next((r for r in repos if r.full_name == f"{owner}/{repo}"), None)
     if not match:
         raise HTTPException(status_code=404, detail="Repository not found or not accessible")
-    return build_template_summary(match)
+    return build_repository_summary(match, settings.data_path)

@@ -9,11 +9,11 @@ Cursor SDK–powered pipeline that analyzes GitHub repositories and produces rec
 | 1 — SDK plumbing | ✅ Done |
 | 2 — Taxonomy + triage | 🟡 Partial (`triage.py` exists; `taxonomy.yaml` pending) |
 | 3 — Scout agent | ✅ Done (validated on `Darksharkthe1st/CodeRunner`) |
-| 4 — Rabbit-hole agents | 🟡 Implemented (CLI ready; validation pending) |
-| 5 — Synthesizer + API | ⬜ Not started |
-| 6 — Frontend polish | ⬜ Not started |
+| 4 — Rabbit-hole agents | ✅ Done (CLI + `signals/*.md`) |
+| 5 — Synthesizer + API | 🟡 Demo (`artifact_loader` → API) |
+| 6 — Frontend polish | 🟡 Pipeline UI + bullets on repo detail |
 
-**Important:** The web API (`POST /api/analysis/resume`) still uses the heuristic `RepoAgent`. The SDK pipeline is CLI-only until Milestone 5 wires it into `AnalysisOrchestrator`.
+**Demo (hackathon):** Pre-computed artifacts in `backend/data/analysis/` are served via `artifact_loader.py` — `GET /api/analysis/repo/{owner}/{repo}` and instant bullets on `POST /api/analysis/resume/{owner}/{repo}`. Live SDK runs remain CLI-only; heuristic `RepoAgent` is the fallback when no artifacts exist.
 
 ## Goals
 

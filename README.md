@@ -1,6 +1,8 @@
 # Lightroom
 
-GitHub-powered repository explorer that analyzes your code and commits to generate resume bullets.
+Cursor agents analyze your GitHub repos and turn real code + commits into recruiter-ready resume bullets.
+
+**Hackathon demo:** see **[DEMO.md](DEMO.md)** (2-minute walkthrough).
 
 ## Architecture
 
