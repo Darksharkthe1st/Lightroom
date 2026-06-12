@@ -14,7 +14,7 @@ def build_scout_prompt(
     commits: list[dict[str, Any]],
 ) -> str:
     commit_lines = []
-    for item in commits[:30]:
+    for item in commits[:50]:
         sha = item.get("sha", "")[:7]
         msg = item.get("commit", {}).get("message", "").splitlines()[0]
         commit_lines.append(f"- {sha}: {msg}")
@@ -92,4 +92,16 @@ JSON array of deep-dive recommendations. Only include signals where there is **e
 - Cite **file paths** as evidence.
 - Focus on what SWE recruiters scan for: languages, frameworks, cloud, data, CI/CD, testing, system design.
 - Do not open pull requests or modify application code — only create `.lightroom/findings.md` and `.lightroom/rabbit_holes.json`.
+
+## Required final response format
+
+After writing the files, your **last message** must include both delimiter blocks below (copy the full file contents verbatim). This is mandatory for downstream parsing.
+
+<<<LIGHTROOM_FINDINGS_MD>>>
+(paste the complete contents of `.lightroom/findings.md` here)
+<<<END_LIGHTROOM_FINDINGS_MD>>>
+
+<<<LIGHTROOM_RABBIT_HOLES_JSON>>>
+(paste the complete JSON array from `.lightroom/rabbit_holes.json` here)
+<<<END_LIGHTROOM_RABBIT_HOLES_JSON>>>
 """

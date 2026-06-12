@@ -50,7 +50,7 @@ async def build_triage(
     blobs = [item for item in tree if item.get("type") == "blob"]
     paths = [item["path"] for item in blobs]
 
-    commits = await github.list_commits(owner, repo, author=username, per_page=50)
+    commits = await github.list_commits_all(owner, repo, author=username)
     signals = _detect_signals(paths, meta)
 
     commit_count = len(commits)

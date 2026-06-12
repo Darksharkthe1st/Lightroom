@@ -134,8 +134,29 @@ class GitHubService:
         repo: str,
         author: str | None = None,
         per_page: int = 30,
+        page: int = 1,
     ) -> list[dict[str, Any]]:
-        params: dict[str, Any] = {"per_page": per_page}
+        params: dict[str, Any] = {"per_page": per_page, "page": page}
         if author:
             params["author"] = author
         return await self._get(f"/repos/{owner}/{repo}/commits", params=params)
+
+    async def list_commits_all(
+        self,
+        owner: str,
+        repo: str,
+        author: str | None = None,
+        per_page: int = 100,
+        max_pages: int = 5,
+    ) -> list[dict[str, Any]]:
+        commits: list[dict[str, Any]] = []
+        for page in range(1, max_pages + 1):
+            batch = await self.list_commits(
+                owner, repo, author=author, per_page=per_page, page=page
+            )
+            if not batch:
+                break
+            commits.extend(batch)
+            if len(batch) < per_page:
+                break
+        return commits

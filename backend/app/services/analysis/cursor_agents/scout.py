@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from app.services.analysis.cursor_agents.artifacts import parse_scout_output
 from app.services.analysis.cursor_agents.client import run_cloud_prompt
 from app.services.analysis.cursor_agents.prompts import build_scout_prompt
 from app.services.analysis.triage import build_triage
@@ -46,7 +46,7 @@ async def run_scout(
 
     meta = await github.get_repository(owner, repo)
     branch = meta.get("default_branch") or "main"
-    commits_raw = await github.list_commits(owner, repo, author=username, per_page=30)
+    commits_raw = await github.list_commits_all(owner, repo, author=username)
 
     commits_path = analysis_dir / "commits.json"
     commits_path.write_text(json.dumps(commits_raw, indent=2), encoding="utf-8")
@@ -70,7 +70,26 @@ async def run_scout(
         run_meta_path=run_meta_path,
     )
 
-    findings_text, rabbit_holes = _parse_scout_output(cloud_result.result_text or "")
+    if cloud_result.result_text:
+        (runs_dir / "scout_response.txt").write_text(cloud_result.result_text, encoding="utf-8")
+    if cloud_result.artifacts:
+        (runs_dir / "scout_artifacts.json").write_text(
+            json.dumps(
+                {"paths": cloud_result.artifact_paths, "keys": list(cloud_result.artifacts)},
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        artifacts_dir = runs_dir / "artifacts"
+        artifacts_dir.mkdir(exist_ok=True)
+        for path, content in cloud_result.artifacts.items():
+            safe_name = path.replace("/", "__")
+            (artifacts_dir / safe_name).write_text(content, encoding="utf-8")
+
+    findings_text, rabbit_holes = parse_scout_output(
+        cloud_result.result_text or "",
+        cloud_result.artifacts,
+    )
 
     findings_path = analysis_dir / "findings.md"
     findings_path.write_text(findings_text, encoding="utf-8")
@@ -90,56 +109,3 @@ async def run_scout(
         status=cloud_result.status,
         rabbit_holes=rabbit_holes,
     )
-
-
-def _parse_scout_output(text: str) -> tuple[str, list[dict[str, Any]]]:
-    findings = _extract_artifact(text, "findings.md")
-    rabbit_raw = _extract_artifact(text, "rabbit_holes.json")
-
-    if not findings:
-        findings = _extract_markdown_block(text) or text
-
-    rabbit_holes: list[dict[str, Any]] = []
-    if rabbit_raw:
-        try:
-            parsed = json.loads(rabbit_raw)
-            if isinstance(parsed, list):
-                rabbit_holes = parsed
-        except json.JSONDecodeError:
-            rabbit_holes = _extract_json_array(text)
-
-    return findings.strip(), rabbit_holes
-
-
-def _extract_artifact(text: str, filename: str) -> str | None:
-    pattern = rf"--- artifact:.*?{re.escape(filename)}.*?---\n(.*?)(?=\n--- artifact:|\Z)"
-    match = re.search(pattern, text, re.DOTALL)
-    if match:
-        return match.group(1).strip()
-
-    if filename in text:
-        header = f"# Findings:" if filename == "findings.md" else None
-        if header and header in text:
-            start = text.index(header)
-            end = text.find("--- artifact:", start)
-            return text[start:end].strip() if end != -1 else text[start:].strip()
-
-    return None
-
-
-def _extract_markdown_block(text: str) -> str | None:
-    if "# Findings:" in text:
-        start = text.index("# Findings:")
-        return text[start:].split("--- artifact:")[0].strip()
-    return None
-
-
-def _extract_json_array(text: str) -> list[dict[str, Any]]:
-    match = re.search(r"\[\s*\{.*?\}\s*\]", text, re.DOTALL)
-    if not match:
-        return []
-    try:
-        parsed = json.loads(match.group(0))
-        return parsed if isinstance(parsed, list) else []
-    except json.JSONDecodeError:
-        return []

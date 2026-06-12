@@ -28,6 +28,8 @@ class CloudRunMeta:
     result_text: str | None
     repo_url: str
     branch: str
+    artifacts: dict[str, str]
+    artifact_paths: list[str]
 
 
 async def run_cloud_prompt(
@@ -79,6 +81,8 @@ async def run_cloud_prompt(
                     result_text=result.result,
                 )
 
+                artifacts, artifact_paths = await _download_artifacts(agent)
+
                 meta = CloudRunMeta(
                     agent_id=agent_id,
                     run_id=run_id,
@@ -87,6 +91,8 @@ async def run_cloud_prompt(
                     result_text=result.result,
                     repo_url=repo_url,
                     branch=branch,
+                    artifacts=artifacts,
+                    artifact_paths=artifact_paths,
                 )
 
                 if run_meta_path:
@@ -100,13 +106,13 @@ async def run_cloud_prompt(
                                 "duration_ms": meta.duration_ms,
                                 "repo_url": meta.repo_url,
                                 "branch": meta.branch,
+                                "artifact_paths": meta.artifact_paths,
                             },
                             indent=2,
                         ),
                         encoding="utf-8",
                     )
 
-                meta.result_text = await _collect_lightroom_artifacts(agent, meta.result_text)
                 return meta
 
     except Exception as exc:
@@ -114,26 +120,23 @@ async def run_cloud_prompt(
         raise
 
 
-async def _collect_lightroom_artifacts(agent: AsyncAgent, fallback_text: str | None) -> str | None:
-    """Download .lightroom/* artifacts if the agent produced them."""
+async def _download_artifacts(agent: AsyncAgent) -> tuple[dict[str, str], list[str]]:
+    """Download all cloud agent artifacts keyed by path."""
+    downloaded: dict[str, str] = {}
+    paths: list[str] = []
     try:
-        artifacts = await agent.list_artifacts()
+        listed = await agent.list_artifacts()
     except Exception:
-        return fallback_text
+        return downloaded, paths
 
-    paths = {a.path for a in artifacts}
-    lightroom = [p for p in paths if p.startswith(".lightroom/") or p.endswith("findings.md")]
-    if not lightroom:
-        return fallback_text
-
-    parts = [fallback_text or ""]
-    for path in sorted(lightroom):
+    for artifact in listed:
+        paths.append(artifact.path)
         try:
-            content = await agent.download_artifact(path)
-            parts.append(f"\n--- artifact: {path} ---\n{content.decode('utf-8', errors='replace')}")
+            raw = await agent.download_artifact(artifact.path)
+            downloaded[artifact.path] = raw.decode("utf-8", errors="replace")
         except Exception:
             continue
-    return "\n".join(parts)
+    return downloaded, paths
 
 
 async def smoke_test_connected_repo(
