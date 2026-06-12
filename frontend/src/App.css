@@ -1,0 +1,191 @@
+:root {
+  font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.5;
+  color: #1a1a1a;
+  background: #f6f7f9;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+.app {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+}
+
+.landing {
+  text-align: center;
+  padding-top: 4rem;
+}
+
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.topbar h1 {
+  margin: 0 0 0.25rem;
+  font-size: 1.75rem;
+}
+
+.topbar-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn {
+  border: 1px solid #d0d5dd;
+  background: #fff;
+  color: #1a1a1a;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+  display: inline-block;
+}
+
+.btn:hover {
+  background: #f0f2f5;
+}
+
+.btn.primary {
+  background: #24292f;
+  color: #fff;
+  border-color: #24292f;
+}
+
+.btn.primary:hover {
+  background: #32383f;
+}
+
+.btn.ghost {
+  background: transparent;
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.muted {
+  color: #667085;
+  margin: 0;
+}
+
+.error {
+  color: #b42318;
+  background: #fef3f2;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.repo-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.repo-card {
+  width: 100%;
+  text-align: left;
+  padding: 1rem 1.25rem;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.repo-card:hover {
+  border-color: #98a2b3;
+}
+
+.repo-card strong {
+  font-size: 1rem;
+}
+
+.repo-card .meta {
+  font-size: 0.8rem;
+  color: #667085;
+}
+
+.detail h2,
+.resume h2 {
+  margin-top: 0;
+}
+
+.back {
+  margin-bottom: 1rem;
+}
+
+.summary-card {
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.badge {
+  display: inline-block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  background: #eef4ff;
+  color: #3538cd;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  margin: 0 0 0.75rem;
+}
+
+.tech {
+  font-size: 0.9rem;
+  color: #475467;
+}
+
+.bullet-list {
+  list-style: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.bullet-card {
+  background: #fff;
+  border: 1px solid #e4e7ec;
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+}
+
+.bullet-card p {
+  margin: 0 0 0.5rem;
+}
+
+.bullet-card .meta {
+  font-size: 0.8rem;
+  color: #667085;
+}
+
+.bullet-card details {
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+}
