@@ -210,6 +210,23 @@ body {
   color: #027a48;
 }
 
+.pipeline-step.active {
+  background: #eef4ff;
+  color: #3538cd;
+}
+
+.pipeline-message {
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9rem;
+}
+
+.analyzing-note {
+  background: #eef4ff;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+
 .signals-section {
   margin: 1.5rem 0;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   apiClient,
   githubLoginUrl,
@@ -14,23 +14,33 @@ type View = "repos" | "repo-detail" | "resume";
 
 function PipelineBar({ analysis }: { analysis: RepoAnalysis | null }) {
   if (!analysis) return null;
+  const running = analysis.pipeline_status === "running";
   const steps = [
-    { label: "Triage", done: analysis.triage_complete },
-    { label: "Scout", done: analysis.scout_complete },
+    { label: "Triage", done: analysis.triage_complete, active: running && analysis.pipeline_phase === "scout" },
+    { label: "Scout", done: analysis.scout_complete, active: running && analysis.pipeline_phase === "scout" },
     {
       label: "Deep dives",
       done: analysis.rabbit_holes_complete > 0,
+      active: running && analysis.pipeline_phase === "rabbit_holes",
       detail: `${analysis.rabbit_holes_complete}/${analysis.rabbit_holes_planned}`,
     },
   ];
   return (
-    <div className="pipeline">
-      {steps.map((s) => (
-        <span key={s.label} className={`pipeline-step ${s.done ? "done" : ""}`}>
-          {s.done ? "✓" : "○"} {s.label}
-          {s.detail ? ` (${s.detail})` : ""}
-        </span>
-      ))}
+    <div>
+      <div className="pipeline">
+        {steps.map((s) => (
+          <span
+            key={s.label}
+            className={`pipeline-step ${s.done ? "done" : ""} ${s.active ? "active" : ""}`}
+          >
+            {s.done ? "✓" : s.active ? "…" : "○"} {s.label}
+            {s.detail ? ` (${s.detail})` : ""}
+          </span>
+        ))}
+      </div>
+      {analysis.pipeline_message && (
+        <p className="pipeline-message muted">{analysis.pipeline_message}</p>
+      )}
     </div>
   );
 }
@@ -74,6 +84,26 @@ function App() {
   const [view, setView] = useState<View>("repos");
   const [error, setError] = useState<string | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  useEffect(() => () => stopPolling(), []);
+
+  const refreshRepo = useCallback(async (owner: string, name: string) => {
+    const [summaryData, analysisData] = await Promise.all([
+      apiClient.getRepoSummary(owner, name),
+      apiClient.getRepoAnalysis(owner, name),
+    ]);
+    setSummary(summaryData);
+    setAnalysis(analysisData);
+    return analysisData;
+  }, []);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -116,40 +146,66 @@ function App() {
     setView("repo-detail");
     setAnalysis(null);
     setSummary(null);
+    stopPolling();
     try {
       const [owner, name] = repo.full_name.split("/");
-      const [summaryData, analysisData] = await Promise.all([
-        apiClient.getRepoSummary(owner, name),
-        apiClient.getRepoAnalysis(owner, name),
-      ]);
-      setSummary(summaryData);
-      setAnalysis(analysisData);
+      const analysisData = await refreshRepo(owner, name);
+      if (analysisData.pipeline_status === "running") {
+        startPolling(owner, name);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load repository");
     }
   };
 
-  const runAnalysis = async (scope: "all" | "single") => {
+  const startPolling = (owner: string, name: string) => {
+    stopPolling();
+    setAnalyzing(true);
+    pollRef.current = setInterval(async () => {
+      try {
+        const data = await refreshRepo(owner, name);
+        if (data.pipeline_status === "failed") {
+          stopPolling();
+          setAnalyzing(false);
+          setError(data.pipeline_message || "Analysis failed");
+          return;
+        }
+        if (data.pipeline_status !== "running" && (data.bullets.length > 0 || data.scout_complete)) {
+          stopPolling();
+          setAnalyzing(false);
+        }
+      } catch (err) {
+        stopPolling();
+        setAnalyzing(false);
+        setError(err instanceof Error ? err.message : "Failed to refresh analysis");
+      }
+    }, 3000);
+  };
+
+  const runAnalysis = async () => {
+    if (!selectedRepo) return;
+    const [owner, name] = selectedRepo.full_name.split("/");
     setAnalyzing(true);
     setError(null);
     try {
-      let result: ResumeResponse;
-      if (scope === "single" && selectedRepo) {
-        const [owner, name] = selectedRepo.full_name.split("/");
-        result = await apiClient.runRepoAnalysis(owner, name);
-      } else {
-        result = await apiClient.runResumeAnalysis();
+      const force = Boolean(analysis?.bullets.length);
+      const result = await apiClient.runRepoAnalysis(owner, name, force);
+      if (result.status === "running") {
+        startPolling(owner, name);
+        await refreshRepo(owner, name);
+        return;
       }
       setResume(result);
       setView("resume");
+      setAnalyzing(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Analysis failed");
-    } finally {
       setAnalyzing(false);
     }
   };
 
   const logout = async () => {
+    stopPolling();
     await apiClient.logout();
     setUser(null);
     setRepos([]);
@@ -263,27 +319,28 @@ function App() {
               </ul>
             </div>
           )}
-          {analysis && analysis.bullets.length > 0 ? (
+          {analysis && analysis.bullets.length > 0 && (
             <div className="signals-section">
               <h3>Resume bullets</h3>
               <BulletList bullets={analysis.bullets} />
             </div>
-          ) : analysis?.status === "pending" ? (
-            <p className="muted demo-hint">
-              No AI analysis for this repo yet. Try <strong>Darksharkthe1st/CodeRunner</strong>{" "}
-              for the full demo, or run the scout CLI to analyze this repo.
+          )}
+          {analyzing && (
+            <p className="muted analyzing-note">
+              Cursor agents are working — scout and deep dives can take several minutes. This
+              page updates automatically.
             </p>
-          ) : null}
+          )}
           <button
             type="button"
             className="btn primary"
-            onClick={() => runAnalysis("single")}
+            onClick={runAnalysis}
             disabled={analyzing}
           >
             {analyzing
-              ? "Loading..."
+              ? "Analyzing…"
               : analysis && analysis.bullets.length > 0
-                ? "Open resume view"
+                ? "Re-run analysis"
                 : "Generate resume bullets"}
           </button>
         </section>

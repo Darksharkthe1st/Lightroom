@@ -74,6 +74,9 @@ export interface RepoAnalysis {
   findings_excerpt: string;
   signals: SignalNote[];
   bullets: ResumeBullet[];
+  pipeline_status?: string | null;
+  pipeline_phase?: string | null;
+  pipeline_message?: string | null;
 }
 
 export interface ResumeResponse {
@@ -94,8 +97,11 @@ export const apiClient = {
   getResume: () => api<ResumeResponse>("/api/analysis/resume"),
   runResumeAnalysis: () =>
     api<ResumeResponse>("/api/analysis/resume", { method: "POST" }),
-  runRepoAnalysis: (owner: string, repo: string) =>
-    api<ResumeResponse>(`/api/analysis/resume/${owner}/${repo}`, { method: "POST" }),
+  runRepoAnalysis: (owner: string, repo: string, force = false) =>
+    api<ResumeResponse>(
+      `/api/analysis/resume/${owner}/${repo}${force ? "?force=true" : ""}`,
+      { method: "POST" },
+    ),
 };
 
 export function githubLoginUrl(): string {

@@ -124,7 +124,7 @@ def load_repo_analysis(data_dir: Path, owner: str, repo: str) -> RepoAnalysis:
 
     bullets = load_bullets(data_dir, owner, repo)
 
-    return RepoAnalysis(
+    analysis = RepoAnalysis(
         full_name=full_name,
         status=status,
         triage_complete=triage_done,
@@ -135,6 +135,19 @@ def load_repo_analysis(data_dir: Path, owner: str, repo: str) -> RepoAnalysis:
         signals=signals,
         bullets=bullets,
     )
+
+    from app.services.analysis.pipeline import get_repo_job
+
+    job = get_repo_job(owner, repo)
+    if job:
+        return analysis.model_copy(
+            update={
+                "pipeline_status": job.get("status"),
+                "pipeline_phase": job.get("phase"),
+                "pipeline_message": job.get("message"),
+            }
+        )
+    return analysis
 
 
 def resume_response_from_artifacts(

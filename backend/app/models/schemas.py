@@ -68,6 +68,9 @@ class RepoAnalysis(BaseModel):
     findings_excerpt: str = ""
     signals: list[SignalNote] = Field(default_factory=list)
     bullets: list[ResumeBullet] = Field(default_factory=list)
+    pipeline_status: str | None = None
+    pipeline_phase: str | None = None
+    pipeline_message: str | None = None
 
 
 class ResumeResponse(BaseModel):

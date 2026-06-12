@@ -45,7 +45,10 @@ async def run_single_repo_analysis(
     repo: str,
     request: Request,
     github: GitHubService = Depends(get_github_client),
+    force: bool = False,
 ) -> ResumeResponse:
     _, session = _require_session(request)
     username = session.user["login"]
-    return await _orchestrator.analyze_single_repository(github, username, owner, repo)
+    return await _orchestrator.analyze_single_repository(
+        github, username, owner, repo, force=force
+    )

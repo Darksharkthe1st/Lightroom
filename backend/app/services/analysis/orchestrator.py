@@ -1,4 +1,4 @@
-"""Coordinates per-repo agents and aggregates resume bullets."""
+"""Coordinates per-repo analysis and aggregates resume bullets."""
 
 from __future__ import annotations
 
@@ -6,7 +6,8 @@ import asyncio
 from pathlib import Path
 
 from app.models.schemas import AnalysisStatus, ResumeBullet, ResumeResponse
-from app.services.analysis.artifact_loader import resume_response_from_artifacts
+from app.services.analysis.artifact_loader import load_bullets, resume_response_from_artifacts
+from app.services.analysis.pipeline import is_job_running, run_repo_pipeline
 from app.services.analysis.repo_agent import RepoAgent
 from app.services.github import GitHubService
 
@@ -55,7 +56,7 @@ class AnalysisOrchestrator:
         async def analyze_one(full_name: str) -> list[ResumeBullet]:
             owner, repo = full_name.split("/", 1)
             cached = resume_response_from_artifacts(self.data_dir, owner, repo, username)
-            if cached is not None:
+            if cached is not None and cached.bullets:
                 return cached.bullets
             agent = RepoAgent(github, owner, repo, username, self.data_dir)
             try:
@@ -93,14 +94,38 @@ class AnalysisOrchestrator:
         username: str,
         owner: str,
         repo: str,
+        *,
+        force: bool = False,
     ) -> ResumeResponse:
-        cached = resume_response_from_artifacts(self.data_dir, owner, repo, username)
-        if cached:
-            key = self._job_key(username)
-            _jobs[key] = {
-                "status": AnalysisStatus.COMPLETED,
-                "bullets": cached.bullets,
-                "message": cached.message,
-            }
-            return cached
-        return await self.analyze_repositories(github, username, [f"{owner}/{repo}"])
+        if is_job_running(owner, repo):
+            from app.services.analysis.pipeline import get_repo_job
+
+            job = get_repo_job(owner, repo) or {}
+            return ResumeResponse(
+                username=username,
+                bullets=load_bullets(self.data_dir, owner, repo),
+                status=AnalysisStatus.RUNNING,
+                message=job.get("message", "Analysis in progress…"),
+            )
+
+        if not force:
+            bullets = load_bullets(self.data_dir, owner, repo)
+            if any(b.signal_id for b in bullets):
+                cached = resume_response_from_artifacts(self.data_dir, owner, repo, username)
+                if cached:
+                    key = self._job_key(username)
+                    _jobs[key] = {
+                        "status": AnalysisStatus.COMPLETED,
+                        "bullets": cached.bullets,
+                        "message": cached.message,
+                    }
+                    return cached
+
+        asyncio.create_task(run_repo_pipeline(github, owner, repo, username))
+
+        return ResumeResponse(
+            username=username,
+            bullets=[],
+            status=AnalysisStatus.RUNNING,
+            message="Starting scout agent…",
+        )
